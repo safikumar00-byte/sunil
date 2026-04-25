@@ -30,6 +30,18 @@
   font-display: swap;
 }
 
+.portfolio-root {
+  --p-bg: #0a0a0b;
+  --p-fg: #f5f3ee;
+  --p-accent: #d4af78;
+  background-color: var(--p-bg);
+  color: var(--p-fg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.portfolio-root .font-serif {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+}
+
 @keyframes fadeInUp {
   0% { opacity: 0; transform: translateY(30px); }
   100% { opacity: 1; transform: translateY(0); }
@@ -52,6 +64,12 @@
 
 * {
   font-family: 'Almarai', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+.portfolio-root, .portfolio-root * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.portfolio-root .font-serif, .portfolio-root .font-serif * {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
 }
 
 .noise-overlay {
