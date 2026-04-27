@@ -1,132 +1,255 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import { ArrowRight, Check } from "lucide-react";
-import { WordsPullUpMultiStyle } from "./WordsPullUpMultiStyle";
 
-interface FeatureCardProps {
-  index: number;
-  number: string;
-  title: string;
-  iconUrl: string;
-  items: string[];
+const CAPABILITIES_VIDEO =
+  "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260418_094631_d30ab262-45ee-4b7d-99f3-5d5848c8ef13.mp4";
+
+const FADE_MS = 500;
+const FADE_OUT_LEAD = 0.55;
+
+interface FadingVideoProps {
+  src: string;
+  className: string;
 }
 
-function FeatureCard({ index, number, title, iconUrl, items }: FeatureCardProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-100px" });
+function FadingVideo({ src, className }: FadingVideoProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const frameRef = useRef<number | null>(null);
+  const resetTimerRef = useRef<number | null>(null);
+  const fadingOutRef = useRef(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video) {
+      return undefined;
+    }
+
+    const cancelFade = () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+
+    const fadeTo = (target: number, duration: number) => {
+      cancelFade();
+
+      const initialOpacity = Number.parseFloat(video.style.opacity || "0");
+      const startOpacity = Number.isNaN(initialOpacity) ? 0 : initialOpacity;
+      const start = performance.now();
+
+      const tick = (now: number) => {
+        const progress = Math.min((now - start) / duration, 1);
+        const nextOpacity = startOpacity + (target - startOpacity) * progress;
+
+        video.style.opacity = `${nextOpacity}`;
+
+        if (progress < 1) {
+          frameRef.current = requestAnimationFrame(tick);
+        } else {
+          frameRef.current = null;
+        }
+      };
+
+      frameRef.current = requestAnimationFrame(tick);
+    };
+
+    const playVideo = () => {
+      const playPromise = video.play();
+
+      if (playPromise) {
+        playPromise.catch(() => {
+          // Autoplay can be interrupted during route transitions; the next event will retry.
+        });
+      }
+    };
+
+    const handleLoadedData = () => {
+      video.style.opacity = "0";
+      playVideo();
+      fadeTo(1, FADE_MS);
+    };
+
+    const handleTimeUpdate = () => {
+      const remaining = video.duration - video.currentTime;
+
+      if (!fadingOutRef.current && remaining <= FADE_OUT_LEAD && remaining > 0) {
+        fadingOutRef.current = true;
+        fadeTo(0, FADE_MS);
+      }
+    };
+
+    const handleEnded = () => {
+      video.style.opacity = "0";
+
+      resetTimerRef.current = window.setTimeout(() => {
+        video.currentTime = 0;
+        playVideo();
+        fadingOutRef.current = false;
+        fadeTo(1, FADE_MS);
+      }, 100);
+    };
+
+    video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("ended", handleEnded);
+
+    return () => {
+      cancelFade();
+
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+      }
+
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("ended", handleEnded);
+    };
+  }, []);
 
   return (
-    <motion.div
+    <video
+      ref={videoRef}
+      autoPlay
+      muted
+      playsInline
+      preload="auto"
+      className={className}
+      src={src}
+      style={{ opacity: 0 }}
+    />
+  );
+}
+
+interface CapabilityCardProps {
+  body: string;
+  className: string;
+  iconPath: string;
+  index: number;
+  tags: string[];
+  title: string;
+}
+
+const capabilities = [
+  {
+    title: "AI Scenery",
+    iconPath:
+      "M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h14q.825 0 1.413.588T21 5v14q0 .825-.587 1.413T19 21H5Zm1-4h12l-3.75-5-3 4L9 13l-3 4Z",
+    tags: ["Natural Context", "Photo Realism", "Infinite Settings", "Eco-Vibe"],
+    body: "AI analyzes your product to create indistinguishable natural environments - from Icelandic cliffs to misty forests.",
+    className: "lg:mt-16 lg:min-h-[430px]",
+  },
+  {
+    title: "Batch Production",
+    iconPath:
+      "M4 6.47 5.76 10H20v8H4V6.47M22 4h-4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.89-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4Z",
+    tags: ["Scale Fast", "Visual Consistency", "Time Saver", "Ready to Post"],
+    body: "Style your entire product line in minutes. Create a unified visual identity for catalogues and social media without weeks of retouching.",
+    className: "lg:min-h-[490px] lg:-translate-y-4",
+  },
+  {
+    title: "Smart Lighting",
+    iconPath:
+      "M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1Zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7Z",
+    tags: ["Ray Tracing", "Physical Shadows", "Studio Quality", "Sunlight Sync"],
+    body: "Automatic lighting and material adjustment. Achieve flawless integration with realistic shadows and sunlight.",
+    className: "lg:mt-6 lg:min-h-[410px]",
+  },
+];
+
+function CapabilityCard({ body, className, iconPath, index, tags, title }: CapabilityCardProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-120px" });
+
+  return (
+    <motion.article
       ref={ref}
-      initial={{ scale: 0.95, opacity: 0 }}
-      animate={inView ? { scale: 1, opacity: 1 } : {}}
-      transition={{ duration: 0.7, delay: index * 0.15, ease: [0.22, 1, 0.36, 1] }}
-      className="bg-[#212121] rounded-2xl p-5 md:p-6 flex flex-col h-full min-h-[420px]"
+      initial={{ filter: "blur(10px)", opacity: 0, y: 36 }}
+      animate={inView ? { filter: "blur(0px)", opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.75, delay: index * 0.14, ease: [0.16, 1, 0.3, 1] }}
+      className={`liquid-glass relative flex min-h-[360px] flex-col rounded-[1.25rem] p-5 text-white sm:p-6 ${className}`}
     >
-      <img src={iconUrl} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover" />
-      <h3 className="mt-5 text-lg sm:text-xl font-medium" style={{ color: "#E1E0CC" }}>
-        {title} <span className="text-gray-500 ml-1">{number}</span>
-      </h3>
-      <ul className="mt-5 space-y-3 flex-1">
-        {items.map((it, i) => (
-          <li key={i} className="flex gap-2 text-xs sm:text-sm text-gray-400">
-            <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-            <span>{it}</span>
-          </li>
-        ))}
-      </ul>
-      <a href="#" className="mt-6 inline-flex items-center gap-1.5 text-xs sm:text-sm text-primary group">
-        Learn more
-        <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" style={{ transform: "rotate(-45deg)" }} />
-      </a>
-    </motion.div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="liquid-glass grid h-11 w-11 shrink-0 place-items-center rounded-[0.75rem]">
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6 fill-current text-white">
+            <path d={iconPath} />
+          </svg>
+        </div>
+
+        <div className="flex max-w-[72%] flex-wrap justify-end gap-1.5">
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="liquid-glass rounded-full px-3 py-1 text-[11px] leading-none text-white/90"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex-1" />
+
+      <div className="mt-8">
+        <h3
+          className="text-3xl italic leading-none tracking-[-1px] text-white md:text-4xl"
+          style={{ fontFamily: "'Instrument Serif', serif" }}
+        >
+          {title}
+        </h3>
+        <p className="mt-3 max-w-[32ch] text-sm font-light leading-snug text-white/90">{body}</p>
+      </div>
+    </motion.article>
   );
 }
 
 export function Features() {
-  const videoCardRef = useRef<HTMLDivElement>(null);
-  const videoInView = useInView(videoCardRef, { once: true, margin: "-100px" });
+  const headerRef = useRef<HTMLDivElement>(null);
+  const headerInView = useInView(headerRef, { once: true, margin: "-100px" });
 
   return (
-    <section className="relative min-h-screen bg-black py-20 md:py-32 px-4 md:px-6 overflow-hidden">
-      <div className="absolute inset-0 bg-noise opacity-[0.15] pointer-events-none" />
-      <div className="relative max-w-7xl mx-auto">
-        <div className="text-center mb-12 md:mb-16">
-          <div className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-normal leading-tight">
-            <WordsPullUpMultiStyle
-              segments={[
-                { text: "Studio-grade workflows for visionary creators.", className: "" },
-              ]}
-              className=""
-            />
-          </div>
-          <div className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-normal leading-tight mt-1" style={{ color: "#E1E0CC" }}>
-            <WordsPullUpMultiStyle
-              segments={[
-                { text: "Built for pure vision. Powered by art.", className: "text-gray-500" },
-              ]}
-              delay={0.3}
-            />
-          </div>
-        </div>
+    <section
+      id="prisma-capabilities"
+      className="relative min-h-screen overflow-hidden bg-black px-4 py-16 sm:px-8 md:px-16 lg:px-20 lg:pb-10 lg:pt-24"
+    >
+      <FadingVideo
+        src={CAPABILITIES_VIDEO}
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 lg:h-[480px] gap-3 sm:gap-2 md:gap-1">
-          <motion.div
-            ref={videoCardRef}
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={videoInView ? { scale: 1, opacity: 1 } : {}}
-            transition={{ duration: 0.7, delay: 0, ease: [0.22, 1, 0.36, 1] }}
-            className="relative rounded-2xl overflow-hidden min-h-[420px] lg:min-h-0"
+      <div className="pointer-events-none absolute inset-0 z-[1]">
+        <div className="absolute left-[8%] top-[18%] h-[34vw] w-[34vw] max-w-[520px] border border-white/15 opacity-70 [clip-path:polygon(50%_0,100%_100%,0_100%)]" />
+        <div className="absolute right-[6%] top-[10%] h-[42vw] w-[42vw] max-w-[640px] rotate-12 border border-white/10 opacity-60 [clip-path:polygon(0_12%,100%_0,74%_100%)]" />
+        <div className="absolute bottom-[12%] left-[24%] h-px w-[54vw] rotate-[-18deg] bg-white/25" />
+        <div className="absolute bottom-[28%] right-[12%] h-px w-[34vw] rotate-[24deg] bg-white/20" />
+        <div className="absolute left-[16%] top-[52%] h-24 w-px rotate-[32deg] bg-white/25" />
+        <div className="absolute right-[30%] top-[38%] h-14 w-14 rotate-45 border border-white/20" />
+      </div>
+
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col">
+        <motion.header
+          ref={headerRef}
+          initial={{ filter: "blur(10px)", opacity: 0, y: 24 }}
+          animate={headerInView ? { filter: "blur(0px)", opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-12 lg:mb-auto"
+        >
+          <p className="mb-6 text-sm text-white/80">// Capabilities</p>
+          <h2
+            className="max-w-3xl text-6xl italic leading-[0.9] tracking-[-3px] text-white md:text-7xl lg:text-[6rem]"
+            style={{ fontFamily: "'Instrument Serif', serif" }}
           >
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover"
-              src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_133058_0504132a-0cf3-4450-a370-8ea3b05c95d4.mp4"
-            />
-            <div className="absolute bottom-0 left-0 right-0 p-5 md:p-6 bg-gradient-to-t from-black/70 to-transparent">
-              <p className="text-base sm:text-lg font-medium" style={{ color: "#E1E0CC" }}>
-                Your creative canvas.
-              </p>
-            </div>
-          </motion.div>
+            Production
+            <br />
+            evolved
+          </h2>
+        </motion.header>
 
-          <FeatureCard
-            index={1}
-            number="01"
-            title="Project Storyboard."
-            iconUrl="https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260405_171918_4a5edc79-d78f-4637-ac8b-53c43c220606.png&w=1280&q=85"
-            items={[
-              "Drag-and-drop scene blocks",
-              "Frame-by-frame shot planning",
-              "Realtime collaborative editing",
-              "Auto-sync to your timeline",
-            ]}
-          />
-          <FeatureCard
-            index={2}
-            number="02"
-            title="Smart Critiques."
-            iconUrl="https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260405_171741_ed9845ab-f5b2-4018-8ce7-07cc01823522.png&w=1280&q=85"
-            items={[
-              "AI-powered scene analysis",
-              "Creative notes from mentors",
-              "Native tool integrations",
-            ]}
-          />
-          <FeatureCard
-            index={3}
-            number="03"
-            title="Immersion Capsule."
-            iconUrl="https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260405_171809_f56666dc-c099-4778-ad82-9ad4f209567b.png&w=1280&q=85"
-            items={[
-              "Notification silencing modes",
-              "Curated ambient soundscapes",
-              "Calendar & schedule syncing",
-            ]}
-          />
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3 md:items-end lg:gap-6">
+          {capabilities.map((capability, index) => (
+            <CapabilityCard key={capability.title} index={index} {...capability} />
+          ))}
         </div>
       </div>
     </section>
